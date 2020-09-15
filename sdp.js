@@ -66,8 +66,14 @@ function showRemoteStats(results) {
     receiverStatsDiv.innerHTML = '<h2>Receiver stats</h2>' + statsString;
     // calculate video bitrate
     results.forEach(function(report) {
-        let now = report.timestamp;
+        if(report.framesPerSecond){
+            remote_framesPerSecond.innerHTML = '<strong>framesPerSecond:</strong> ' + report.framesPerSecond;
+        }
+        if(report.framerateMean){
+            remote_framesPerSecond.innerHTML = '<strong>framerateMean:</strong> ' + report.framerateMean;
+        }
 
+        let now = report.timestamp;
         let bitrate;
         if (report.type === 'inbound-rtp' && report.mediaType === 'video') {
             let bytes = report.bytesReceived;
@@ -130,12 +136,10 @@ function showLocalStats(results) {
 
     results.forEach(function(report) {
         if(report.framesPerSecond){
-            framesPerSecond = report.framesPerSecond
-            framesPerSecondDiv.innerHTML = '<strong>framesPerSecond:</strong> ' + framesPerSecond;
+            local_framesPerSecond.innerHTML = '<strong>framesPerSecond:</strong> ' + report.framesPerSecond;
         }
         if(report.framerateMean){
-            framesPerSecond = report.framerateMean
-            framesPerSecondDiv.innerHTML = '<strong>framerateMean:</strong> ' + framesPerSecond;
+            local_framesPerSecond.innerHTML = '<strong>framerateMean:</strong> ' + report.framerateMean;
         }
     });
 }

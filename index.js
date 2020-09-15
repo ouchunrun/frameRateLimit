@@ -8,7 +8,8 @@ getMediaButton.onclick = getMedia;
 connectButton.onclick = createPeerConnection;
 hangupButton.onclick = hangup;
 
-let framesPerSecondDiv = document.querySelector('div#framesPerSecond');
+let local_framesPerSecond = document.querySelector('div#local_framesPerSecond');
+let remote_framesPerSecond = document.querySelector('div#remote_framesPerSecond');
 let bitrateDiv = document.querySelector('div#bitrate');
 let peerDiv = document.querySelector('div#peer');
 let senderStatsDiv = document.querySelector('div#senderStats');
@@ -22,9 +23,9 @@ let remoteVideoStatsDiv = document.querySelector('div#remoteVideo div');
 let localPeerConnection;
 let remotePeerConnection;
 let localStream;
+let remoteStream;
 let bytesPrev;
 let timestampPrev;
-let framesPerSecond
 
 function createPeerConnection() {
     log.info("begin create peerConnections");
@@ -35,15 +36,24 @@ function createPeerConnection() {
     timestampPrev = 0;
     localPeerConnection = new RTCPeerConnection(null);
     remotePeerConnection = new RTCPeerConnection(null);
-    localStream.getTracks().forEach(
-        function(track) {
-            log.info("localPeerConnection addTack!");
-            localPeerConnection.addTrack(
-                track,
-                localStream
-            );
-        }
-    );
+
+    if(localStream){
+        localStream.getTracks().forEach(
+            function(track) {
+                log.info("localPeerConnection addTack!");
+                localPeerConnection.addTrack(track, localStream);
+            }
+        );
+    }
+    if(remoteStream){
+        remoteStream.getTracks().forEach(
+            function(track) {
+                log.info("localPeerConnection addTack!");
+                remotePeerConnection.addTrack(track, remoteStream);
+            }
+        );
+    }
+
     log.info('localPeerConnection creating offer');
     localPeerConnection.onnegotiationeeded = function() {
         log.info('Negotiation needed - localPeerConnection');
@@ -53,26 +63,27 @@ function createPeerConnection() {
     };
     localPeerConnection.onicecandidate = function(e) {
         log.info('Candidate localPeerConnection');
-        remotePeerConnection.addIceCandidate(e.candidate)
-            .then(
-                onAddIceCandidateSuccess,
-                onAddIceCandidateError
-            );
+        remotePeerConnection.addIceCandidate(e.candidate).then(onAddIceCandidateSuccess, onAddIceCandidateError);
     };
     remotePeerConnection.onicecandidate = function(e) {
         log.info('Candidate remotePeerConnection');
-        localPeerConnection.addIceCandidate(e.candidate)
-            .then(
-                onAddIceCandidateSuccess,
-                onAddIceCandidateError
-            );
+        localPeerConnection.addIceCandidate(e.candidate).then(onAddIceCandidateSuccess, onAddIceCandidateError);
     };
+
+    localPeerConnection.ontrack = function(e) {
+        if (localVideo.srcObject !== e.streams[0]) {
+            log.info('localPeerConnection got stream ' + e.streams[0].id);
+            localVideo.srcObject = e.streams[0];
+        }
+    };
+
     remotePeerConnection.ontrack = function(e) {
         if (remoteVideo.srcObject !== e.streams[0]) {
-            log.info('remotePeerConnection got stream');
+            log.info('remotePeerConnection got stream ' + e.streams[0].id);
             remoteVideo.srcObject = e.streams[0];
         }
     };
+
     localPeerConnection.createOffer().then(
         function(offer) {
             log.info('localPeerConnection setLocalDescription:\n', offer.sdp);
@@ -107,14 +118,10 @@ function createPeerConnection() {
                         log.error(err)
                     })
                 },
-                function(err) {
-                    log.info(err);
-                }
+                function(err) {log.info(err);}
             );
         },
-        function(err) {
-            log.info(err);
-        }
+        function(err) {log.info(err);}
     );
 }
 
@@ -126,37 +133,26 @@ function onAddIceCandidateError(error) {
     log.info('Failed to add Ice Candidate: ' + error.toString());
 }
 
-
 function hangup() {
     log.info('Ending call');
     localPeerConnection.close();
     remotePeerConnection.close();
-    // window.location.reload();
+    window.location.reload();
 
     // query stats one last time.
     Promise.all([
-        remotePeerConnection.getStats(null)
-            .then(showRemoteStats, function(err) {
-                log.info(err);
-            }),
-        localPeerConnection.getStats(null)
-            .then(showLocalStats, function(err) {
-                log.info(err);
-            })
+        remotePeerConnection.getStats(null).then(showRemoteStats, function(err) {log.info(err);}),
+        localPeerConnection.getStats(null).then(showLocalStats, function(err) {log.info(err);})
     ]).then(() => {
         localPeerConnection = null;
         remotePeerConnection = null;
     });
 
-    localStream.getTracks().forEach(function(track) {
-        track.stop();
-    });
+    localStream.getTracks().forEach(function(track) {track.stop();});
     localStream = null;
-
     hangupButton.disabled = true;
     getMediaButton.disabled = false;
 }
-
 
 /************************************************* 取流部分 *************************************************************/
 var getUserMediaConstraintsDiv = document.querySelector('textarea#getUserMediaConstraints');
@@ -208,25 +204,48 @@ function getMedia() {
     var constraints = JSON.parse(getUserMediaConstraintsDiv.value)
     var deviceId = getUsingDeviceId()
     if(deviceId){
-        constraints.video.deviceId = getUsingDeviceId()
+        constraints.video.deviceId = deviceId
     }
 
     log.warn("getNewStream constraint: \n" + JSON.stringify(constraints, null, '    ') );
-    navigator.mediaDevices.getUserMedia(constraints).then(gotStream).catch(function(e) {
+    navigator.mediaDevices.getUserMedia(constraints).then(function (stream){
+        log.warn('get local media stream succeeded:' , stream.id);
+        connectButton.disabled = false;
+        localStream = stream;
+        localVideo.srcObject = stream;
+
+        // 获取远端流
+        var selectedIndex = document.getElementById('videoList').options.selectedIndex
+        var options = document.getElementById('videoList').options
+        if(selectedIndex){
+            for(var i = 0; i<options.length; i++){
+                if(i !== selectedIndex){
+                    deviceId = options[i].value
+                }
+            }
+        }else {
+            deviceId = options[options.length-1].value
+        }
+        console.warn("deviceId: ", deviceId)
+        if(deviceId){
+            constraints.video.deviceId = deviceId
+        }
+        navigator.mediaDevices.getUserMedia(constraints).then(function (_stream){
+            log.warn('get remote media stream succeeded:', _stream.id);
+            remoteStream = _stream
+            remoteVideo.srcObject = _stream;
+        }).catch(function(e) {
+            console.error(e)
+            log.warn("get remote media stream failed!");
+        });
+    }).catch(function(e) {
+        console.error(e)
         log.warn("getUserMedia failed!");
         let message = 'getUserMedia error: ' + e.name + '\n' + 'PermissionDeniedError may mean invalid constraints.';
         log.warn(message);
         getMediaButton.disabled = false;
     });
 }
-
-function gotStream(stream) {
-    connectButton.disabled = false;
-    log.warn('GetUserMedia succeeded:');
-    localStream = stream;
-    localVideo.srcObject = stream;
-}
-
 
 function closeStream() {
     // clear first
@@ -278,13 +297,9 @@ document.onreadystatechange = function () {
                 }
             }
             document.getElementById('videoList').innerHTML = videoInputList.join('')
+            getMedia();
         }, function (error) {
             console.error('enum device error: ' + error)
         })
     }
 }
-
-window.onload = function (){
-    getMedia();
-}
-
