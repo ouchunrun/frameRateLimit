@@ -8,6 +8,7 @@ getMediaButton.onclick = getMedia;
 connectButton.onclick = createPeerConnection;
 hangupButton.onclick = hangup;
 
+let framesPerSecondDiv = document.querySelector('div#framesPerSecond');
 let bitrateDiv = document.querySelector('div#bitrate');
 let peerDiv = document.querySelector('div#peer');
 let senderStatsDiv = document.querySelector('div#senderStats');
@@ -23,118 +24,7 @@ let remotePeerConnection;
 let localStream;
 let bytesPrev;
 let timestampPrev;
-
-function getResolution(value) {
-    var constraints = {}
-    if(value){
-        let res = parseInt(value)
-        constraints = {}
-        switch (res) {
-            case 2160:
-                constraints = {
-                    width: 3840,
-                    height: 2160
-                }
-                break
-            case 1080:
-                constraints = {
-                    width: 1920,
-                    height: 1080
-                }
-                break
-            case 720:
-                constraints = {
-                    width: 1280,
-                    height: 720
-                }
-                break
-            case 480:
-                constraints = {
-                    width: 848,
-                    height: 480
-                }
-                break
-            case 360:
-                constraints = {
-                    width: 640,
-                    height: 360
-                }
-                break
-            case 272:
-                constraints = {
-                    width: 480,
-                    height: 272
-                }
-                break
-            default:
-                constraints = {
-                    width: 640,
-                    height: 360
-                }
-                break
-        }
-    }else {
-        log.warn("invalid value!!")
-    }
-
-    return constraints
-}
-
-function getMedia() {
-    log.warn('GetUserMedia start!');
-    getMediaButton.disabled = true;
-    if (localStream) {
-        localStream.getTracks().forEach(function(track) {
-            track.stop();
-        });
-        let videoTracks = localStream.getVideoTracks();
-        for (let i = 0; i !== videoTracks.length; ++i) {
-            videoTracks[i].stop();
-        }
-    }
-
-    let resolutionList = document.getElementById('setResolution').options
-    let select= resolutionList[resolutionList.selectedIndex]
-    log.warn("select Resolution: ", select.value)
-    var frameRate = document.getElementById('setFrameRate').value
-    frameRate = parseInt(frameRate) || 15
-    console.warn("get frameRate " + frameRate)
-    var getCons = getResolution(select.value)
-    let constraints = {
-        audio: false,
-        video: {
-            frameRate: frameRate,
-            width: {
-                ideal: getCons.width || 1280,
-                max: getCons.width || 1280
-            },
-            height: {
-                ideal: getCons.height || 720,
-                max: getCons.height || 720
-            }
-        }
-    }
-
-    log.warn("getNewStream constraint: \n" + JSON.stringify(constraints, null, '    ') );
-    navigator.mediaDevices.getUserMedia(constraints).then(gotStream).catch(function(e) {
-        log.warn("getUserMedia failed!");
-        let message = 'getUserMedia error: ' + e.name + '\n' + 'PermissionDeniedError may mean invalid constraints.';
-        log.warn(message);
-        getMediaButton.disabled = false;
-    });
-}
-getMedia();
-
-document.getElementById('setResolution').onchange = function () {
-    getMedia()
-}
-
-function gotStream(stream) {
-    connectButton.disabled = false;
-    log.warn('GetUserMedia succeeded:');
-    localStream = stream;
-    localVideo.srcObject = stream;
-}
+let framesPerSecond
 
 function createPeerConnection() {
     log.info("begin create peerConnections");
@@ -241,7 +131,7 @@ function hangup() {
     log.info('Ending call');
     localPeerConnection.close();
     remotePeerConnection.close();
-    window.location.reload();
+    // window.location.reload();
 
     // query stats one last time.
     Promise.all([
@@ -267,110 +157,134 @@ function hangup() {
     getMediaButton.disabled = false;
 }
 
-function showRemoteStats(results) {
-    let statsString = dumpStats(results);
 
-    receiverStatsDiv.innerHTML = '<h2>Receiver stats</h2>' + statsString;
-    // calculate video bitrate
-    results.forEach(function(report) {
-        let now = report.timestamp;
+/************************************************* 取流部分 *************************************************************/
+var getUserMediaConstraintsDiv = document.querySelector('textarea#getUserMediaConstraints');
+var defaultCon = {
+    audio: false,
+    video: {
+        frameRate: 15,
+        aspectRatio: {
+            min: 1.777,
+            max: 1.778
+        },
+        width: 1280,
+        height: 720,
+    }
+};
 
-        let bitrate;
-        if (report.type === 'inbound-rtp' && report.mediaType === 'video') {
-            let bytes = report.bytesReceived;
-            if (timestampPrev) {
-                bitrate = 8 * (bytes - bytesPrev) / (now - timestampPrev);
-                bitrate = Math.floor(bitrate);
-            }
-            bytesPrev = bytes;
-            timestampPrev = now;
-        }
-        if (bitrate) {
-            bitrate += ' kbits/sec';
-            bitrateDiv.innerHTML = '<strong>Bitrate:</strong> ' + bitrate;
-        }
+getUserMediaConstraintsDiv.value = JSON.stringify(defaultCon, null, '    ' );
+
+function getUsingDeviceId () {
+    var deviceId = ''
+    var selectedIndex = document.getElementById('videoList').options.selectedIndex
+    if(selectedIndex < 0){
+        selectedIndex = 0
+    }
+    var selectedOption = document.getElementById('videoList').options[selectedIndex]
+    if(selectedOption && selectedOption.value){
+        deviceId = selectedOption.value
+    }
+    console.log('get deviceId: ' + deviceId)
+    return deviceId
+}
+
+function selectDeviceAndGum(){
+    var deviceId = getUsingDeviceId()
+    console.warn("deviceId: ", deviceId)
+    if(deviceId === ""){
+        console.warn("请选择有效设备")
+        return
+    }
+    getMedia()
+}
+
+function getMedia() {
+    log.warn('GetUserMedia start!');
+    console.log("clear stream first")
+    closeStream()
+    getMediaButton.disabled = true;
+
+    var constraints = JSON.parse(getUserMediaConstraintsDiv.value)
+    var deviceId = getUsingDeviceId()
+    if(deviceId){
+        constraints.video.deviceId = getUsingDeviceId()
+    }
+
+    log.warn("getNewStream constraint: \n" + JSON.stringify(constraints, null, '    ') );
+    navigator.mediaDevices.getUserMedia(constraints).then(gotStream).catch(function(e) {
+        log.warn("getUserMedia failed!");
+        let message = 'getUserMedia error: ' + e.name + '\n' + 'PermissionDeniedError may mean invalid constraints.';
+        log.warn(message);
+        getMediaButton.disabled = false;
     });
+}
 
-    // figure out the peer's ip
-    let activeCandidatePair = null;
-    let remoteCandidate = null;
+function gotStream(stream) {
+    connectButton.disabled = false;
+    log.warn('GetUserMedia succeeded:');
+    localStream = stream;
+    localVideo.srcObject = stream;
+}
 
-    // Search for the candidate pair, spec-way first.
-    results.forEach(function(report) {
-        if (report.type === 'transport') {
-            activeCandidatePair = results.get(report.selectedCandidatePairId);
-        }
-    });
-    // Fallback for Firefox and Chrome legacy stats.
-    if (!activeCandidatePair) {
-        results.forEach(function(report) {
-            if (report.type === 'candidate-pair' && report.selected ||
-                report.type === 'googCandidatePair' &&
-                report.googActiveConnection === 'true') {
-                activeCandidatePair = report;
+
+function closeStream() {
+    // clear first
+    var stream = localVideo.srcObject
+    if (stream){
+        try {
+            stream.oninactive = null;
+            var tracks = stream.getTracks();
+            for (var track in tracks) {
+                tracks[track].onended = null;
+                log.info("close stream");
+                tracks[track].stop();
             }
+        }
+        catch (error) {
+            log.info('closeStream: Failed to close stream');
+            log.error(error);
+        }
+        stream = null;
+        localVideo.srcObject = null
+    }
+
+    if (localStream) {
+        localStream.getTracks().forEach(function(track) {
+            track.stop();
         });
-    }
-    if (activeCandidatePair && activeCandidatePair.remoteCandidateId) {
-        remoteCandidate = results.get(activeCandidatePair.remoteCandidateId);
-    }
-    if (remoteCandidate) {
-        if (remoteCandidate.ip && remoteCandidate.port) {
-            peerDiv.innerHTML = '<strong>Connected to:</strong> ' +
-                remoteCandidate.ip + ':' + remoteCandidate.port;
-        } else if (remoteCandidate.ipAddress && remoteCandidate.portNumber) {
-            // Fall back to old names.
-            peerDiv.innerHTML = '<strong>Connected to:</strong> ' +
-                remoteCandidate.ipAddress +
-                ':' + remoteCandidate.portNumber;
+        var videoTracks = localStream.getVideoTracks();
+        for (var i = 0; i !== videoTracks.length; ++i) {
+            videoTracks[i].stop();
         }
     }
 }
 
-function showLocalStats(results) {
-    let statsString = dumpStats(results);
-    senderStatsDiv.innerHTML = '<h2>Sender stats</h2>' + statsString;
-}
-// Display statistics
-setInterval(function() {
-    if (localPeerConnection && remotePeerConnection) {
-        remotePeerConnection.getStats(null)
-            .then(showRemoteStats, function(err) {
-                log.info(err);
-            });
-        localPeerConnection.getStats(null)
-            .then(showLocalStats, function(err) {
-                log.info(err);
-            });
-    } else {
-        // log.info('Not connected yet');
-    }
-    // Collect some stats from the video tags.
-    if (localVideo.videoWidth) {
-        localVideoStatsDiv.innerHTML = '<strong>Video dimensions:</strong> ' +
-            localVideo.videoWidth + 'x' + localVideo.videoHeight + 'px';
-    }
-    if (remoteVideo.videoWidth) {
-        remoteVideoStatsDiv.innerHTML = '<strong>Video dimensions:</strong> ' +
-            remoteVideo.videoWidth + 'x' + remoteVideo.videoHeight + 'px';
-    }
-}, 1000);
-
-// Dumping a stats letiable as a string.
-// might be named toString?
-function dumpStats(results) {
-    let statsString = '';
-    results.forEach(function(res) {
-        statsString += '<h3>Report type=';
-        statsString += res.type;
-        statsString += '</h3>\n';
-        statsString += 'id ' + res.id + '<br>\n';
-        statsString += 'time ' + res.timestamp + '<br>\n';
-        Object.keys(res).forEach(function(k) {
-            if (k !== 'timestamp' && k !== 'type' && k !== 'id') {
-                statsString += k + ': ' + res[k] + '<br>\n';
+var mediaDeviceInstance
+document.onreadystatechange = function () {
+    if (document.readyState === "complete") {
+        mediaDeviceInstance = new MediaDevice()
+        var videoInputList = []
+        // videoInputList.push('<option class="cameraOption" value="">' + "请选择" + '</option>')
+        mediaDeviceInstance.enumDevices(deviceInfo => {
+            console.log('enumDevices' + JSON.stringify(deviceInfo.cameras))
+            if (deviceInfo.cameras) {
+                for (var j = 0; j < deviceInfo.cameras.length; j++) {
+                    if (!deviceInfo.cameras[j].label) {
+                        deviceInfo.cameras[j].label = 'camera' + j
+                    }
+                    videoInputList.push('<option class="cameraOption" value="' + deviceInfo.cameras[j].deviceId + '">' + deviceInfo.cameras[j].label + '</option>')
+                    console.log('camera: ' + deviceInfo.cameras[j].label)
+                }
             }
-        });
-    });
-    return statsString;
+            document.getElementById('videoList').innerHTML = videoInputList.join('')
+        }, function (error) {
+            console.error('enum device error: ' + error)
+        })
+    }
 }
+
+window.onload = function (){
+    getMedia();
+}
+
