@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta itemprop="name" content="WebRTC code samples">
+    <meta id="theme-color" name="theme-color" content="#ffffff">
+    <base target="_blank">
+    <title>Client bitrate control</title>
+    <link rel="shortcut icon" href="#"/>
+    <link rel="stylesheet" href="./css/main.css"/>
+    <link rel="stylesheet" href="./css/index.css"/>
+
+    <script src="./js/vconsole.min.js"></script>
+    <script src="./js/debug.js"></script>
+    <script src="./js/sdp_tools.js"></script>
+    <script>
+       <!--init vConsole-->
+        var vConsole = new VConsole();
+        console.log('Hello world');
+
+       var log = { };
+       log.debug = window.debug("sipWebRTC:DEBUG");
+       log.log   = window.debug("sipWebRTC:LOG");
+       log.info  = window.debug("sipWebRTC:INFO");
+       log.warn  = window.debug("sipWebRTC:WARN");
+       log.error = window.debug("sipWebRTC:ERROR");
+    </script>
+</head>
+
+<body>
+
+<div id="container">
+
+    <h1><a href="https://github.com/ouchunrun/WebRTC-bandwidth-limit">Bitrate control</a></h1>
+
+    <h2 style="display: none;">通过修改SDP来限制WebRTC帧率</h2>
+    <div>
+        <span style="width: 144px;display: inline-block;">选择分辨率：</span>
+        <select name="" id="setResolution" style="width: 200px;height: 30px;">
+            <option value="1080">1080</option>
+            <option value="720">720</option>
+            <option value="480">480</option>
+            <option value="360">360</option>
+            <option value="272">272</option>
+            <option value="2160">2160</option>
+        </select>
+    </div>
+
+    <div>
+        <span style="width: 144px;display: inline-block;">设置取流帧率：</span>
+        <input type="text" id="setFrameRate" style="width: 200px;height: 30px;" value=15>
+    </div>
+
+    <div style="margin: 10px 0;">
+        <span style="width: 144px;display: inline-block;">设置要删除的编码：</span>
+        <input type="text" id="setDeleteCode" style="width: 200px;height: 30px;" value=VP8><span>注：VP8或H264</span>
+    </div>
+
+    <div style="margin: 10px 0;">
+        <span style="width: 144px;display: inline-block;">设置max-fs：</span>
+        <input type="text" id="setMaxFs" style="width: 200px;height: 30px;" value=8160>
+    </div>
+
+    <div>
+        <span style="width: 144px;display: inline-block;">设置max-mbps：</span>
+        <input type="text" id="setMaxMbps" style="width: 200px;height: 30px;" value=122400>
+    </div>
+
+    <div>
+        <span style="width: 144px;display: inline-block;">设置framerate：</span>
+        <input type="text" id="setFramer" style="width: 200px;height: 30px;" value=15>
+    </div>
+
+    <hr>
+    <div>
+        <button id="getMedia" style="display: none">Get media</button>
+        <button id="connect" disabled>连接</button>
+        <button id="hangup" disabled>挂断</button>
+    </div>
+
+    <section id="video">
+        <div id="localVideo">
+            <h2>localVideo</h2>
+            <video playsinline autoplay muted></video>
+            <div></div>
+        </div>
+        <div id="remoteVideo">
+            <h2>remoteVideo</h2>
+            <video playsinline autoplay muted></video>
+            <div></div>
+            <div id="bitrate"></div>
+            <div id="peer"></div>
+        </div>
+    </section>
+
+    <div style="clear: both;">
+        <hr>
+        <p>(1)max-fs、max-mbps、framerate、要删除的编码等字段，有值时才会设置</p>
+        <p>(2)要删除的编码，只支持设置一个值，不能同时设置多个编码</p>
+        <p>(3)max-fs、max-mbps 需要手动填写，没有动态计算值</p>
+    </div>
+    <hr>
+    <section id="statistics">
+        <div id="senderStats"></div>
+        <div id="receiverStats"></div>
+    </section>
+</div>
+
+<script src="js/adapter-latest.js"></script>
+<script src="js/ga.js"></script>
+<script src="index.js"></script>
+<script src="sdp.js"></script>
+</body>
+</html>
