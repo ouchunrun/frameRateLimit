@@ -29,19 +29,26 @@ function decorateSdp(sdp){
         media.payloads = media.payloads.trim()
     }
 
+    // console.warn("vp8PTList： ", vp8PTList)
+    // console.warn("h264PTList: ", h264PTList)
+
     // 设置max-fs 或 max-mbps
     let maxFs = document.getElementById('setMaxFs').value
     let maxMbps = document.getElementById('setMaxMbps').value
     for(var j = 0; j<media.fmtp.length; j++){
         var item_ = media.fmtp[j]
-        if(vp8PTList.includes(item_.payload) && maxFs){
-            media.fmtp[j].config = media.fmtp[j].config + ' max-fs=' + maxFs
+        if(vp8PTList.includes(item_.payload)  && maxFs){
+            if(media.fmtp[j].config.split(' ').length <= 1){
+                media.fmtp[j].config = media.fmtp[j].config + ' max-fs=' + maxFs
+            }else {
+                media.fmtp[j].config = media.fmtp[j].config + ';max-fs=' + maxFs
+            }
         }else if(h264PTList.includes(item_.payload)){
             if(maxMbps){
-                media.fmtp[j].config = media.fmtp[j].config + ';max-mbps=' + maxMbps +';'
+                media.fmtp[j].config = media.fmtp[j].config + ';max-mbps=' + maxMbps
             }
             if(maxFs){
-                media.fmtp[j].config = media.fmtp[j].config + ';max-fs=' + maxFs + ';'
+                media.fmtp[j].config = media.fmtp[j].config + ';max-fs=' + maxFs
             }
         }
     }

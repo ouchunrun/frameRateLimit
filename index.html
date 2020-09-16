@@ -48,7 +48,7 @@
             <br>
             <div style="margin: 10px 0;">
                 <span style="width: 144px;display: inline-block;">设置要删除的编码：</span>
-                <input type="text" id="setDeleteCode" style="width: 200px;height: 30px;" value="" placeholder="VP8 or H264">
+                <input type="text" id="setDeleteCode" style="width: 200px;height: 30px;" value="VP8" placeholder="VP8 or H264">
             </div>
 
             <div style="margin: 10px 0;">
@@ -77,6 +77,7 @@
     <hr style="clear: none">
     <div>
         <button id="getMedia" style="display: none">Get media</button>
+        <button id="getNewStream" onclick="selectDeviceAndGum()">点击重新取流</button>
         <button id="connect" disabled>连接</button>
         <button id="hangup" disabled>挂断</button>
     </div>

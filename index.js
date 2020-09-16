@@ -159,7 +159,7 @@ var getUserMediaConstraintsDiv = document.querySelector('textarea#getUserMediaCo
 var defaultCon = {
     audio: false,
     video: {
-        frameRate: 15,
+        frameRate: 30,
         aspectRatio: {
             min: 1.777,
             max: 1.778
@@ -214,30 +214,30 @@ function getMedia() {
         localStream = stream;
         localVideo.srcObject = stream;
 
-        // 获取远端流
-        var selectedIndex = document.getElementById('videoList').options.selectedIndex
-        var options = document.getElementById('videoList').options
-        if(selectedIndex){
-            for(var i = 0; i<options.length; i++){
-                if(i !== selectedIndex){
-                    deviceId = options[i].value
-                }
-            }
-        }else {
-            deviceId = options[options.length-1].value
-        }
-        console.warn("deviceId: ", deviceId)
-        if(deviceId){
-            constraints.video.deviceId = deviceId
-        }
-        navigator.mediaDevices.getUserMedia(constraints).then(function (_stream){
-            log.warn('get remote media stream succeeded:', _stream.id);
-            remoteStream = _stream
-            remoteVideo.srcObject = _stream;
-        }).catch(function(e) {
-            console.error(e)
-            log.warn("get remote media stream failed!");
-        });
+        // // 获取远端流
+        // var selectedIndex = document.getElementById('videoList').options.selectedIndex
+        // var options = document.getElementById('videoList').options
+        // if(selectedIndex){
+        //     for(var i = 0; i<options.length; i++){
+        //         if(i !== selectedIndex){
+        //             deviceId = options[i].value
+        //         }
+        //     }
+        // }else {
+        //     deviceId = options[options.length-1].value
+        // }
+        // console.warn("deviceId: ", deviceId)
+        // if(deviceId){
+        //     constraints.video.deviceId = deviceId
+        // }
+        // navigator.mediaDevices.getUserMedia(constraints).then(function (_stream){
+        //     log.warn('get remote media stream succeeded:', _stream.id);
+        //     remoteStream = _stream
+        //     remoteVideo.srcObject = _stream;
+        // }).catch(function(e) {
+        //     console.error(e)
+        //     log.warn("get remote media stream failed!");
+        // });
     }).catch(function(e) {
         console.error(e)
         log.warn("getUserMedia failed!");
